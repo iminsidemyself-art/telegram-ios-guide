@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telegram iOS 源码导览 · 第一期</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a23;
+    --surface-hover: #22222e;
+    --border: #2a2a3a;
+    --border-glow: #4f46e540;
+    --text: #e8e6f0;
+    --text-dim: #8b8a97;
+    --text-faint: #5c5b66;
+    --accent: #818cf8;
+    --accent-soft: #818cf820;
+    --accent-glow: #818cf830;
+    --green: #6ee7b7;
+    --green-soft: #6ee7b720;
+    --orange: #fbbf24;
+    --orange-soft: #fbbf2420;
+    --pink: #f472b6;
+    --pink-soft: #f472b620;
+    --blue: #60a5fa;
+    --blue-soft: #60a5fa20;
+    --cyan: #22d3ee;
+    --cyan-soft: #22d3ee20;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'PingFang SC', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    padding: 80px 40px 60px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #e8e6f0 30%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 17px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  /* Container */
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .section-label::before {
+    content: '';
+    width: 16px; height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+  .section h2 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .section > .desc {
+    color: var(--text-dim);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  /* Architecture diagram */
+  .arch-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .arch-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .arch-box {
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-weight: 500;
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .arch-box:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--border-glow);
+    transform: translateY(-2px);
+  }
+  .arch-box.accent { border-color: var(--accent); background: var(--accent-soft); }
+  .arch-box.green { border-color: var(--green); background: var(--green-soft); }
+  .arch-box.orange { border-color: var(--orange); background: var(--orange-soft); }
+  .arch-box.pink { border-color: var(--pink); background: var(--pink-soft); }
+  .arch-box.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .arch-box.cyan { border-color: var(--cyan); background: var(--cyan-soft); }
+  .arch-box small {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .arch-arrow {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  /* Module cards */
+  .module-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .module-card:hover {
+    border-color: var(--accent);
+  }
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .module-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .module-icon.accent { background: var(--accent-soft); }
+  .module-icon.green { background: var(--green-soft); }
+  .module-icon.orange { background: var(--orange-soft); }
+  .module-icon.pink { background: var(--pink-soft); }
+  .module-icon.blue { background: var(--blue-soft); }
+  .module-icon.cyan { background: var(--cyan-soft); }
+  .module-meta {
+    flex: 1;
+  }
+  .module-name {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .module-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .module-chevron {
+    color: var(--text-faint);
+    font-size: 14px;
+    transition: transform 0.3s;
+  }
+  .module-card.open .module-chevron {
+    transform: rotate(90deg);
+  }
+  .module-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .module-card.open .module-body {
+    max-height: 2000px;
+  }
+  .module-content {
+    padding: 0 24px 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+  .module-content p {
+    margin-bottom: 16px;
+    font-size: 15px;
+    line-height: 1.9;
+  }
+  .module-content .analogy {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .module-content .analogy::before {
+    content: '💡 类比';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .module-content .key-point {
+    background: var(--green-soft);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .module-content .key-point::before {
+    content: '✦ 重点';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .module-content .for-starlet {
+    background: var(--pink-soft);
+    border-left: 3px solid var(--pink);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .module-content .for-starlet::before {
+    content: '⭐ 对 Starlet 的启发';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pink);
+    margin-bottom: 6px;
+  }
+
+  /* Code block */
+  .code-block {
+    background: #12121a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    position: relative;
+  }
+  .code-block .code-label {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: 'Inter', sans-serif;
+  }
+  .code-comment { color: #6a6a80; }
+  .code-keyword { color: #c084fc; }
+  .code-type { color: #60a5fa; }
+  .code-string { color: #6ee7b7; }
+  .code-func { color: #fbbf24; }
+
+  /* Inline terms */
+  .term {
+    display: inline;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-faint);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .hero { padding: 60px 20px 40px; }
+    .hero h1 { font-size: 28px; }
+    .arch-row { flex-wrap: wrap; }
+    .container { padding: 0 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">第一期 · 架构总览</div>
+  <h1>Telegram iOS 源码导览</h1>
+  <p>给零基础的你准备的代码阅读指南。不讲语法，只讲设计——这栋大楼怎么盖的、为什么这么盖。</p>
+</div>
+
+<div class="container">
+
+  <!-- Section 1: 全局鸟瞰 -->
+  <div class="section">
+    <div class="section-label">Overview</div>
+    <h2>先看全貌</h2>
+    <p class="desc">Telegram iOS 的源码有 250+ 个模块，但别慌——它们分成清晰的几层，就像一栋楼，每层各司其职。</p>
+
+    <div class="arch-flow">
+      <div class="arch-row">
+        <div class="arch-box pink" onclick="scrollToCard('ui')">
+          🖥 TelegramUI
+          <small>你看到的所有界面</small>
+        </div>
+      </div>
+      <div class="arch-arrow">↑ 调用</div>
+      <div class="arch-row">
+        <div class="arch-box cyan" onclick="scrollToCard('display')">
+          🎨 Display / ComponentFlow
+          <small>自研 UI 框架</small>
+        </div>
+        <div class="arch-box blue" onclick="scrollToCard('context')">
+          🔑 AccountContext
+          <small>依赖注入中心</small>
+        </div>
+      </div>
+      <div class="arch-arrow">↑ 调用</div>
+      <div class="arch-row">
+        <div class="arch-box green" onclick="scrollToCard('core')">
+          ⚙️ TelegramCore
+          <small>业务逻辑层</small>
+        </div>
+      </div>
+      <div class="arch-arrow">↑ 调用</div>
+      <div class="arch-row">
+        <div class="arch-box orange" onclick="scrollToCard('postbox')">
+          💾 Postbox
+          <small>本地数据库（真源层）</small>
+        </div>
+        <div class="arch-box accent" onclick="scrollToCard('network')">
+          🌐 MtProtoKit
+          <small>网络通信</small>
+        </div>
+      </div>
+      <div class="arch-arrow">↑ 依赖</div>
+      <div class="arch-row">
+        <div class="arch-box" onclick="scrollToCard('signal')">
+          ⚡ SwiftSignalKit
+          <small>响应式编程基础</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-content">
+      <div class="analogy">
+        把整个 app 想象成一家餐厅：<br>
+        <b>SwiftSignalKit</b> 是传菜系统（所有信息通过它流动）<br>
+        <b>MtProtoKit</b> 是外卖骑手（跟服务器通信）<br>
+        <b>Postbox</b> 是厨房的冰箱（所有食材存在这里）<br>
+        <b>TelegramCore</b> 是大厨（处理业务逻辑）<br>
+        <b>Display</b> 是餐盘和摆盘方式（UI 框架）<br>
+        <b>TelegramUI</b> 是端出来的菜（你看到的界面）
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: 逐层讲解 -->
+  <div class="section">
+    <div class="section-label">Deep Dive</div>
+    <h2>每层是什么</h2>
+    <p class="desc">点开每个模块看详细讲解。从最底层开始往上读，或者直接点你感兴趣的。</p>
+
+    <!-- SwiftSignalKit -->
+    <div class="module-card" id="card-signal">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon accent">⚡</div>
+        <div class="module-meta">
+          <div class="module-name">SwiftSignalKit</div>
+          <div class="module-subtitle">响应式编程框架 · 整个 app 的神经系统</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>一个让数据能「自动流动」的工具。当数据变了，所有关心这个数据的地方都会自动收到通知并更新。</p>
+
+          <div class="analogy">
+            你关注了一个博主，博主发新动态你就会收到推送——不需要你每隔五分钟自己去刷新。SwiftSignalKit 就是这个「关注 + 推送」机制，只不过是给代码用的。
+          </div>
+
+          <p>Telegram 自己写了这个框架（比苹果的 Combine、社区的 RxSwift 都早），整个 app 几乎所有模块都依赖它。核心概念只有两个：</p>
+
+          <p>
+            <span class="term">Signal</span> — 一个数据流。比如「聊天列表的最新状态」就是一个 Signal，它会在有新消息时自动发出新的值。<br><br>
+            <span class="term">Promise</span> — 一个可以被手动更新的 Signal。当你想「主动往数据流里塞一个新值」的时候用它。
+          </p>
+
+          <div class="key-point">
+            为什么重要？因为 Telegram 的 UI 从来不会「主动去问数据有没有变」——它只是坐在那等着。数据一变，Signal 自动推过来，UI 自动更新。这就是「响应式」。
+          </div>
+
+          <div class="for-starlet">
+            Starlet 的群聊如果也采用响应式数据流，消息到达时 UI 可以自动更新，不需要手动刷新或者轮询。这也是 Telegram 滑动如丝的原因之一。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Postbox -->
+    <div class="module-card" id="card-postbox">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon orange">💾</div>
+        <div class="module-meta">
+          <div class="module-name">Postbox — 本地真源层</div>
+          <div class="module-subtitle">加密本地数据库 · 所有数据的唯一来源</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>手机上的一个加密数据库，存着你所有的聊天记录、联系人、媒体文件信息。<b>UI 显示的所有数据都从这里读，不从网络直接读。</b></p>
+
+          <div class="analogy">
+            你每天看的不是新闻直播（网络），而是自己手机里存好的新闻 app 缓存（Postbox）。新闻一到，先存进手机，然后你从手机上看。这样即使断网了，之前的新闻还都在。
+          </div>
+
+          <p>Postbox 内部分成两个角色：</p>
+          <p>
+            <span class="term">Table</span>（表）— 负责写入。新消息来了，就往 Table 里写。<br><br>
+            <span class="term">View</span>（视图）— 负责读取 + 自动通知。UI 订阅一个 View，Table 一有变化，View 就会通过 SwiftSignalKit 的 Signal 推送给 UI。
+          </p>
+
+          <div class="key-point">
+            这就是 Cele 提到的「本地真源层」。所有数据的流动路径是：<br><br>
+            <b>服务器 → 写入 Postbox → Postbox 通知 UI → UI 更新</b><br><br>
+            UI 永远不直接问服务器要数据。这保证了离线可用、滑动流畅、数据一致。
+          </div>
+
+          <p>底层用的是 <b>SQLCipher</b>（加密版的 SQLite），所以即使有人拿到你的手机文件系统，没有密钥也读不了聊天记录。</p>
+
+          <div class="for-starlet">
+            Starlet 现在的 H5 群聊可能还是直接从服务器拉数据——如果改成「先存本地、从本地读」的模式，离线体验和滚动流畅度都会大幅提升。原生重写的时候可以参考这个思路。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MtProtoKit -->
+    <div class="module-card" id="card-network">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon accent">🌐</div>
+        <div class="module-meta">
+          <div class="module-name">MtProtoKit + TelegramApi</div>
+          <div class="module-subtitle">网络通信层 · 自研加密协议</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>负责跟 Telegram 服务器对话的模块。用的不是普通的 HTTPS，而是 Telegram 自己发明的加密通信协议 MTProto 2.0。</p>
+
+          <div class="analogy">
+            如果说普通 app 跟服务器说话像写明信片（HTTPS），Telegram 就是用密码本写暗号信（MTProto）。连邮差（网络运营商）都看不懂信件内容。
+          </div>
+
+          <p>这层分两个部分：</p>
+          <p>
+            <span class="term">MtProtoKit</span> — 处理连接、加密、选择最近的数据中心、断线重连。你不需要理解加密细节，只要知道它把「跟服务器安全通信」这件事包好了。<br><br>
+            <span class="term">TelegramApi</span> — 自动生成的代码，把服务器支持的几百个 API 接口变成 Swift 可以直接调用的函数。比如「发送消息」「获取聊天列表」。
+          </p>
+
+          <div class="key-point">
+            TelegramApi 的代码是机器生成的，不是人手写的——它是从 Telegram 的 API 规范文件（叫 TL Schema）自动转换过来的。所以这部分代码不需要读，看不懂是正常的。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TelegramCore -->
+    <div class="module-card" id="card-core">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon green">⚙️</div>
+        <div class="module-meta">
+          <div class="module-name">TelegramCore</div>
+          <div class="module-subtitle">业务逻辑中枢 · 串联数据库和网络</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>整个 app 的「大脑」，负责处理所有业务逻辑——发消息、同步聊天、管理设置、处理通知。它从 Postbox 读数据，通过 MtProtoKit 发请求，再把结果写回 Postbox。</p>
+
+          <div class="analogy">
+            回到餐厅的比喻：大厨（TelegramCore）从冰箱（Postbox）拿食材，有时候让外卖骑手（MtProtoKit）去进货，做好菜放回冰箱，服务员（UI）从冰箱取菜端给客人。大厨是整个流程的协调者。
+          </div>
+
+          <p>核心入口是 <span class="term">TelegramEngine</span>——它是 TelegramCore 对外的统一接口。UI 层的代码不会直接去碰 Postbox 或 MtProtoKit，而是通过 TelegramEngine 来操作一切。</p>
+
+          <p>比如「发送一条消息」的完整流程是：</p>
+
+          <div class="code-block">
+            <div class="code-label">流程示意（不是真实代码）</div>
+<span class="code-comment">// 1. UI 调用 TelegramEngine 发消息</span>
+engine.<span class="code-func">sendMessage</span>(to: chatId, text: <span class="code-string">"你好"</span>)
+
+<span class="code-comment">// 2. TelegramCore 先把消息存进 Postbox（状态：发送中）</span>
+<span class="code-comment">//    → UI 立刻看到消息出现（带个小时钟图标）</span>
+
+<span class="code-comment">// 3. TelegramCore 通过 MtProtoKit 发给服务器</span>
+
+<span class="code-comment">// 4. 服务器确认收到</span>
+<span class="code-comment">//    → TelegramCore 更新 Postbox 里的消息状态（已发送）</span>
+<span class="code-comment">//    → UI 自动更新（小时钟变成对勾 ✓）</span>
+          </div>
+
+          <div class="key-point">
+            注意第 2 步：消息还没真的发出去，UI 上就已经显示了。这就是为什么 Telegram 发消息感觉瞬间完成——它先在本地「假装」发成功了（乐观更新），然后后台慢慢跟服务器确认。
+          </div>
+
+          <div class="for-starlet">
+            Starlet 的消息发送如果也用这种「乐观更新」策略——先本地展示、后台确认——体感速度会快很多，用户不用盯着转圈等服务器响应。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AccountContext -->
+    <div class="module-card" id="card-context">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon blue">🔑</div>
+        <div class="module-meta">
+          <div class="module-name">AccountContext</div>
+          <div class="module-subtitle">依赖注入中心 · 每个页面的万能钥匙</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>一个「百宝箱」对象，传给 app 里的每一个页面，里面装着当前用户的所有服务——数据库、网络、设置、主题等等。</p>
+
+          <div class="analogy">
+            你去酒店入住，前台给你一张房卡。这张卡能开房门、刷健身房、刷泳池、刷餐厅——一张卡通行所有设施。AccountContext 就是 app 里每个页面的「房卡」。
+          </div>
+
+          <p>为什么这么设计？因为如果每个页面都要自己去找数据库在哪、网络在哪、当前用户是谁，代码会乱成一团。有了 AccountContext，只要拿着它就能访问一切，而且还能支持多账号切换——换一个 AccountContext 就是换一个账号。</p>
+
+          <div class="key-point">
+            这种设计模式叫「依赖注入」——不让页面自己去找它需要的东西，而是在创建页面的时候就把东西递给它。好处：页面不需要知道东西从哪来，只管用就行。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Display / ComponentFlow -->
+    <div class="module-card" id="card-display">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon cyan">🎨</div>
+        <div class="module-meta">
+          <div class="module-name">Display + AsyncDisplayKit + ComponentFlow</div>
+          <div class="module-subtitle">自研 UI 框架 · Telegram 丝滑的秘密</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>Telegram 没有用苹果自带的 UIKit 或 SwiftUI 来画界面，而是自己搭了一套 UI 系统。这就是为什么它滑起来比大多数 app 流畅。</p>
+
+          <div class="analogy">
+            苹果给的 UIKit 就像宜家家具——能用，但大家的房子都长差不多。Telegram 选择自己做定制家具（AsyncDisplayKit），用更复杂的工艺换来更好的效果。
+          </div>
+
+          <p>这套系统分三层：</p>
+
+          <p>
+            <b>AsyncDisplayKit（底层）</b><br>
+            原本是 Facebook 开源的框架（也叫 Texture），Telegram fork 了一份自己维护。核心能力：<b>把 UI 的计算和绘制放到后台线程做</b>，主线程只负责最后一步「把画好的内容贴到屏幕上」。这就是为什么你在 Telegram 里快速滑动聊天列表不会卡顿——它在你滑之前就已经在后台把下面的内容画好了。
+          </p>
+
+          <p>
+            <b>Display（中间层）</b><br>
+            在 AsyncDisplayKit 上面封装了一些常用的 UI 组件：导航栏、列表、弹窗、页面容器等。
+          </p>
+
+          <p>
+            <b>ComponentFlow（最新层）</b><br>
+            Telegram 自己做的「声明式 UI」框架，类似苹果的 SwiftUI 但更早。新功能（Stories、Emoji 键盘等）都用 ComponentFlow 来写。
+          </p>
+
+          <div class="key-point">
+            Telegram 有一个独特的 UI 规则：<b>一个 view 永远不设置自己的大小和位置，只有它的父级才能设置</b>。这条规则贯穿整个 app，保证了布局的一致性和可预测性。
+          </div>
+
+          <div class="for-starlet">
+            Starlet 重写原生群聊时，核心收益点在这里：用 AsyncDisplayKit 的思路，把消息气泡的布局和渲染放到后台线程，主线程只做「展示」。这就是 H5 永远比不上原生的地方——H5 的 JavaScript 是单线程的，没法做到这一点。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TelegramUI -->
+    <div class="module-card" id="card-ui">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon pink">🖥</div>
+        <div class="module-meta">
+          <div class="module-name">TelegramUI</div>
+          <div class="module-subtitle">用户界面 · 200+ 个 UI 组件</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话解释：</b>你在 Telegram 里看到的所有页面——聊天界面、设置页、贴纸面板、Stories 浏览器、通话界面等等——都在这个模块里。</p>
+
+          <p>TelegramUI 内部有 200 多个子组件，全放在 <span class="term">TelegramUI/Components/</span> 目录下。几个跟 Starlet 最相关的：</p>
+
+          <p>
+            <b>ChatController</b> — 聊天页面的主控制器，是整个 app 最大的文件之一，被拆成了很多 extension 文件来管理。<br><br>
+            <b>ChatHistoryListNode</b> — 聊天消息列表，负责消息的滚动和展示。<br><br>
+            <b>ChatMessageBubbleItemNode</b> — 单条消息气泡的渲染。
+          </p>
+
+          <div class="key-point">
+            TelegramUI 本身没什么"高深"设计，它更像是「在上面几层提供的能力上组装具体页面」。真正的架构智慧在下面几层——SwiftSignalKit、Postbox、Display。<b>读源码时，这层是最后看的</b>，因为不理解下面几层就看不懂这层在干嘛。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: 群聊系统 -->
+  <div class="section">
+    <div class="section-label">Focus Area</div>
+    <h2>群聊消息系统是怎么跑的</h2>
+    <p class="desc">既然 Starlet 要重写群聊，这部分值得单独拿出来看。</p>
+
+    <div class="module-card" id="card-chat">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon green">💬</div>
+        <div class="module-meta">
+          <div class="module-name">消息从收到到显示的完整流程</div>
+          <div class="module-subtitle">5 步走完一条消息的一生</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="code-block">
+            <div class="code-label">一条新消息的旅程</div>
+<span class="code-comment">① 服务器推送</span>
+   服务器通过 MTProto 连接推送一条新消息
+
+<span class="code-comment">② TelegramCore 接收并处理</span>
+   解析消息内容、发送者信息、时间戳等
+
+<span class="code-comment">③ 写入 Postbox</span>
+   存进 MessageHistoryTable（消息历史表）
+   同时更新 ChatListTable（聊天列表排序）
+
+<span class="code-comment">④ Postbox View 感知到变化</span>
+   MessageHistoryView 检测到新数据
+   通过 SwiftSignalKit 的 Signal 发出通知
+
+<span class="code-comment">⑤ UI 自动更新</span>
+   ChatHistoryListNode 收到 Signal
+   渲染新的消息气泡
+   聊天列表也自动更新排序和预览文本
+          </div>
+
+          <p>整个过程 UI 层<b>没有做任何主动查询</b>——它只是被动接收 Signal 推来的数据变化。这就是响应式架构的威力。</p>
+
+          <div class="for-starlet">
+            <b>Starlet 群聊重写的核心参考路径：</b><br><br>
+            1. 建一个本地消息数据库（类似 Postbox），用 SQLite 就行<br>
+            2. 消息到达时先存本地，再通知 UI<br>
+            3. UI 订阅数据变化，不要自己轮询<br>
+            4. 消息列表的渲染放到后台线程（参考 AsyncDisplayKit 思路）<br>
+            5. 发送消息用乐观更新——先本地展示，后台确认
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: 项目结构速查 -->
+  <div class="section">
+    <div class="section-label">Reference</div>
+    <h2>项目目录速查</h2>
+    <p class="desc">打开 Telegram-iOS 仓库时，你会看到这些文件夹。</p>
+
+    <div class="code-block">
+      <div class="code-label">顶层目录</div>
+<span class="code-type">Telegram/</span>          <span class="code-comment">← app 入口 + 各种扩展（分享、通知、Siri、Watch）</span>
+<span class="code-type">submodules/</span>       <span class="code-comment">← ⭐ 核心代码在这里！250+ 个功能模块</span>
+<span class="code-type">third-party/</span>      <span class="code-comment">← 第三方 C/C++ 库（加密、音视频、WebRTC）</span>
+<span class="code-type">build-system/</span>     <span class="code-comment">← 构建系统（用的 Bazel，不是 Xcode）</span>
+<span class="code-type">docs/</span>             <span class="code-comment">← 稀疏的文档（不多）</span>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">submodules/ 里的关键模块</div>
+<span class="code-func">SwiftSignalKit/</span>       <span class="code-comment">← 响应式框架（神经系统）</span>
+<span class="code-func">Postbox/</span>              <span class="code-comment">← 本地数据库（真源层）</span>
+<span class="code-func">MtProtoKit/</span>           <span class="code-comment">← MTProto 网络协议</span>
+<span class="code-func">TelegramApi/</span>          <span class="code-comment">← 自动生成的 API 接口定义</span>
+<span class="code-func">TelegramCore/</span>         <span class="code-comment">← 业务逻辑中枢</span>
+<span class="code-func">AccountContext/</span>       <span class="code-comment">← 依赖注入</span>
+<span class="code-func">AsyncDisplayKit/</span>      <span class="code-comment">← 后台渲染 UI 框架</span>
+<span class="code-func">Display/</span>              <span class="code-comment">← UI 基础组件</span>
+<span class="code-func">ComponentFlow/</span>        <span class="code-comment">← 声明式 UI 框架（新）</span>
+<span class="code-func">TelegramUI/</span>           <span class="code-comment">← 所有界面 + 200 多个子组件</span>
+<span class="code-func">TelegramPresentationData/</span> <span class="code-comment">← 主题、语言、外观设置</span>
+    </div>
+  </div>
+
+  <!-- Section 5: 有趣的冷知识 -->
+  <div class="section">
+    <div class="section-label">Fun Facts</div>
+    <h2>读源码时发现的有趣细节</h2>
+    <p class="desc">这些可能会让你对 Telegram 的工程能力更有感觉。</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="padding:16px 20px;border-radius:12px;background:var(--surface);border:1px solid var(--border);">
+        <b>🔒 零测试</b><br>
+        <span style="color:var(--text-dim);font-size:14px;">整个项目没有一个单元测试。听起来很疯狂，但 Telegram 的质量靠的是极度严格的分层架构和超长的内测期（alpha → beta → stable 三轮），而不是自动化测试。</span>
+      </div>
+      <div style="padding:16px 20px;border-radius:12px;background:var(--surface);border:1px solid var(--border);">
+        <b>🏗 构建系统用 Bazel</b><br>
+        <span style="color:var(--text-dim);font-size:14px;">不用 Xcode 的构建系统，用 Google 开源的 Bazel。因为 250+ 模块如果用 Xcode 编译会慢到怀疑人生，Bazel 可以精确跟踪依赖、只重新编译改了的部分。</span>
+      </div>
+      <div style="padding:16px 20px;border-radius:12px;background:var(--surface);border:1px solid var(--border);">
+        <b>🎨 200+ UI 组件全手写</b><br>
+        <span style="color:var(--text-dim);font-size:14px;">聊天气泡、emoji 键盘、贴纸面板、视频编辑器、相机界面、Stories 浏览器……全是自己从零搭的。一个组件一个文件夹，结构极清晰。</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Made with care for Cele · 第一期到这里 · <a href="https://github.com/nicegram/nicegram-ios" target="_blank">仓库地址</a></p>
+  <p style="margin-top:8px;">下一期预告：深入 SwiftSignalKit，用生活中的例子解释响应式编程</p>
+</div>
+
+<script>
+function toggleCard(header) {
+  const card = header.closest('.module-card');
+  card.classList.toggle('open');
+}
+
+function scrollToCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+      if (!card.classList.contains('open')) {
+        card.classList.add('open');
+      }
+    }, 400);
+  }
+}
+</script>
+</body>
+</html>
