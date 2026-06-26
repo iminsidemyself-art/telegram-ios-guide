@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telegram iOS 源码导览 · 第二期</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a23;
+    --surface-hover: #22222e;
+    --border: #2a2a3a;
+    --border-glow: #4f46e540;
+    --text: #e8e6f0;
+    --text-dim: #8b8a97;
+    --text-faint: #5c5b66;
+    --accent: #818cf8;
+    --accent-soft: #818cf820;
+    --accent-glow: #818cf830;
+    --green: #6ee7b7;
+    --green-soft: #6ee7b720;
+    --orange: #fbbf24;
+    --orange-soft: #fbbf2420;
+    --pink: #f472b6;
+    --pink-soft: #f472b620;
+    --blue: #60a5fa;
+    --blue-soft: #60a5fa20;
+    --cyan: #22d3ee;
+    --cyan-soft: #22d3ee20;
+    --red: #f87171;
+    --red-soft: #f8717120;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'PingFang SC', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .hero {
+    position: relative;
+    padding: 80px 40px 60px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #e8e6f0 30%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 17px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .hero-nav {
+    margin-top: 20px;
+    font-size: 14px;
+  }
+  .hero-nav a {
+    color: var(--accent);
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  .hero-nav a:hover { opacity: 1; }
+
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .section-label::before {
+    content: '';
+    width: 16px; height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+  .section h2 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .section > .desc {
+    color: var(--text-dim);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  .module-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .module-card:hover {
+    border-color: var(--accent);
+  }
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .module-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .module-icon.accent { background: var(--accent-soft); }
+  .module-icon.green { background: var(--green-soft); }
+  .module-icon.orange { background: var(--orange-soft); }
+  .module-icon.pink { background: var(--pink-soft); }
+  .module-icon.blue { background: var(--blue-soft); }
+  .module-icon.cyan { background: var(--cyan-soft); }
+  .module-meta {
+    flex: 1;
+  }
+  .module-name {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .module-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .module-chevron {
+    color: var(--text-faint);
+    font-size: 14px;
+    transition: transform 0.3s;
+  }
+  .module-card.open .module-chevron {
+    transform: rotate(90deg);
+  }
+  .module-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .module-card.open .module-body {
+    max-height: 5000px;
+  }
+  .module-content {
+    padding: 0 24px 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+  .module-content p {
+    margin-bottom: 16px;
+    font-size: 15px;
+    line-height: 1.9;
+  }
+  .module-content .analogy {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .module-content .analogy::before {
+    content: '💡 类比';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .module-content .key-point {
+    background: var(--green-soft);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .module-content .key-point::before {
+    content: '✦ 重点';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .module-content .for-starlet {
+    background: var(--pink-soft);
+    border-left: 3px solid var(--pink);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .module-content .for-starlet::before {
+    content: '⭐ 对 Starlet 的启发';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pink);
+    margin-bottom: 6px;
+  }
+  .module-content .warning {
+    background: var(--red-soft);
+    border-left: 3px solid var(--red);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .module-content .warning::before {
+    content: '⚠️ 注意';
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 6px;
+  }
+
+  .code-block {
+    background: #12121a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    position: relative;
+  }
+  .code-block .code-label {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+  }
+  .code-comment { color: #6a6a80; }
+  .code-keyword { color: #c084fc; }
+  .code-type { color: #60a5fa; }
+  .code-string { color: #6ee7b7; }
+  .code-func { color: #fbbf24; }
+
+  .term {
+    display: inline;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* Flow diagram */
+  .flow-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 24px 0;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    min-width: 120px;
+  }
+  .flow-box.accent { border-color: var(--accent); background: var(--accent-soft); }
+  .flow-box.green { border-color: var(--green); background: var(--green-soft); }
+  .flow-box.orange { border-color: var(--orange); background: var(--orange-soft); }
+  .flow-box.pink { border-color: var(--pink); background: var(--pink-soft); }
+  .flow-box.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .flow-box.cyan { border-color: var(--cyan); background: var(--cyan-soft); }
+  .flow-box small {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .flow-arrow {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .flow-arrow-h {
+    color: var(--text-faint);
+    font-size: 16px;
+  }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .compare-table th {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--border);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .compare-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-faint);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 640px) {
+    .hero { padding: 60px 20px 40px; }
+    .hero h1 { font-size: 28px; }
+    .flow-row { flex-wrap: wrap; }
+    .container { padding: 0 16px 60px; }
+    .compare-table { font-size: 13px; }
+    .compare-table th, .compare-table td { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">第二期 · 深入 SwiftSignalKit</div>
+  <h1>响应式编程拆解</h1>
+  <p>Telegram 整个 app 的神经系统长什么样？用生活里的事来讲清楚 Signal、Promise、Disposable 这些东西到底在干嘛。</p>
+  <div class="hero-nav">
+    <a href="index.html">← 第一期 · 架构总览</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Section 1: 为什么要有 SwiftSignalKit -->
+  <div class="section">
+    <div class="section-label">Why</div>
+    <h2>先搞清楚它为什么存在</h2>
+    <p class="desc">在讲 SwiftSignalKit 怎么工作之前，先搞懂一个问题：没有它的时候，代码是怎么写的？为什么那样不行？</p>
+
+    <div class="module-card" id="card-problem">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon orange">🤯</div>
+        <div class="module-meta">
+          <div class="module-name">没有响应式的世界</div>
+          <div class="module-subtitle">你手动刷新过网页等外卖进度吗？</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="analogy">
+            你点了外卖，想知道骑手到哪了。有两种方式：<br><br>
+            <b>方式 A（轮询）</b>：每隔 30 秒自己打开 app 看一眼。骑手没动？白刷了。骑手到了？可能已经等了 29 秒你才知道。<br><br>
+            <b>方式 B（推送）</b>：骑手每到一个路口，app 自动给你弹一条通知。你不需要做任何事，信息自己来找你。
+          </div>
+
+          <p>传统的编程方式就是方式 A——UI 需要数据的时候，主动去问「嘿，有没有新消息？有没有新数据？」这叫<b>轮询</b>，又笨又费电。</p>
+
+          <p>SwiftSignalKit 让 Telegram 用方式 B——数据变了，自动通知所有关心它的人。UI 只管坐着等，数据自己推过来。</p>
+
+          <div class="key-point">
+            响应式编程的核心思想就一句话：<b>数据变了 → 自动通知 → UI 自动更新</b>。不需要手动刷新，不需要轮询，不需要回调地狱。
+          </div>
+
+          <p>Telegram 在 2015 年左右就自己写了 SwiftSignalKit。那时候苹果的 Combine 还没出生（2019 年才发布），RxSwift 也还不成熟。Telegram 的团队等不及别人，自己造了一个。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: 核心零件 -->
+  <div class="section">
+    <div class="section-label">Core Components</div>
+    <h2>四个核心零件</h2>
+    <p class="desc">SwiftSignalKit 的所有文件加起来不到 3000 行代码。核心概念只有四个，搞懂它们就搞懂了整个框架。</p>
+
+    <!-- Signal -->
+    <div class="module-card" id="card-signal">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon accent">⚡</div>
+        <div class="module-meta">
+          <div class="module-name">Signal — 数据流</div>
+          <div class="module-subtitle">一切的起点，所有数据都通过它流动</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话：</b>Signal 就是一根水管，水（数据）从一头流进去，另一头自动流出来给所有接上管子的人。</p>
+
+          <div class="analogy">
+            想象你在 B 站关注了一个 UP 主。<br><br>
+            <b>UP 主</b> = Signal 的数据源（generator）<br>
+            <b>发新视频</b> = Signal 发出一个新值（putNext）<br>
+            <b>你的关注列表自动出现新视频</b> = 你订阅了这个 Signal<br>
+            <b>UP 主停更了</b> = Signal 完成（putCompletion）<br>
+            <b>UP 主被封号了</b> = Signal 报错（putError）
+          </div>
+
+          <p>Signal 有两个泛型参数：<span class="term">Signal&lt;T, E&gt;</span>，其中 T 是数据类型，E 是错误类型。如果你确定不会出错，E 就写 <span class="term">NoError</span>。</p>
+
+          <p>创建一个 Signal 很简单——给它一个 generator 闭包，告诉它「数据怎么来」：</p>
+
+          <div class="code-block">
+            <div class="code-label">Swift 伪代码</div>
+<span class="code-comment">// 创建一个 Signal：倒计时 3 秒</span>
+<span class="code-keyword">let</span> countdown = <span class="code-type">Signal</span>&lt;<span class="code-type">Int</span>, <span class="code-type">NoError</span>&gt; { subscriber <span class="code-keyword">in</span>
+    subscriber.<span class="code-func">putNext</span>(<span class="code-string">3</span>)   <span class="code-comment">// 发出 3</span>
+    subscriber.<span class="code-func">putNext</span>(<span class="code-string">2</span>)   <span class="code-comment">// 发出 2</span>
+    subscriber.<span class="code-func">putNext</span>(<span class="code-string">1</span>)   <span class="code-comment">// 发出 1</span>
+    subscriber.<span class="code-func">putCompletion</span>()  <span class="code-comment">// 完成</span>
+    <span class="code-keyword">return</span> <span class="code-type">EmptyDisposable</span>
+}
+
+<span class="code-comment">// 订阅这个 Signal</span>
+countdown.<span class="code-func">start</span>(next: { value <span class="code-keyword">in</span>
+    <span class="code-func">print</span>(<span class="code-string">"倒计时: \(value)"</span>)
+}, completed: {
+    <span class="code-func">print</span>(<span class="code-string">"发射！"</span>)
+})
+
+<span class="code-comment">// 输出：</span>
+<span class="code-comment">// 倒计时: 3</span>
+<span class="code-comment">// 倒计时: 2</span>
+<span class="code-comment">// 倒计时: 1</span>
+<span class="code-comment">// 发射！</span>
+          </div>
+
+          <div class="key-point">
+            Signal 的 generator 只在有人 <span class="term">start</span>（订阅）的时候才会执行。没人听的广播不会浪费电。这叫<b>懒执行</b>——你不 start，它就不动。
+          </div>
+
+          <p>在 Telegram 里，Signal 无处不在。几个真实例子：</p>
+          <p>
+            • 聊天列表的最新状态 → <span class="term">Signal&lt;[Chat], NoError&gt;</span><br>
+            • 一条消息的发送进度 → <span class="term">Signal&lt;MessageStatus, NoError&gt;</span><br>
+            • 用户的在线状态 → <span class="term">Signal&lt;UserPresence, NoError&gt;</span><br>
+            • 网络连接状态 → <span class="term">Signal&lt;ConnectionStatus, NoError&gt;</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscriber -->
+    <div class="module-card" id="card-subscriber">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon green">📬</div>
+        <div class="module-meta">
+          <div class="module-name">Subscriber — 收件人</div>
+          <div class="module-subtitle">接收数据的那一端</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话：</b>Subscriber 就是快递柜——Signal 发出的数据会投递到 Subscriber，然后 Subscriber 通知你来取。</p>
+
+          <div class="analogy">
+            你网购了三个包裹。快递柜（Subscriber）的工作：<br><br>
+            • 包裹到了 → 给你发取件码（<b>next</b>）<br>
+            • 包裹丢了 → 通知你异常（<b>error</b>）<br>
+            • 所有包裹都到齐了 → 通知你「全部收到」（<b>completed</b>）<br><br>
+            一旦通知了异常或全部完成，快递柜就不再接收新包裹了。
+          </div>
+
+          <p>Subscriber 内部有一把<b>互斥锁</b>（pthread_mutex），保证多个线程同时往里塞数据的时候不会乱套。这就是为什么 Telegram 可以在后台线程产生数据、在主线程更新 UI，中间不会崩溃。</p>
+
+          <div class="code-block">
+            <div class="code-label">Subscriber 的三个核心方法</div>
+<span class="code-func">putNext</span>(value)      <span class="code-comment">// 投递一个新值，可以调用无数次</span>
+<span class="code-func">putError</span>(error)      <span class="code-comment">// 投递一个错误，调用后 Subscriber 终止</span>
+<span class="code-func">putCompletion</span>()      <span class="code-comment">// 标记完成，调用后 Subscriber 终止</span>
+
+<span class="code-comment">// ⚠️ 一旦调用了 putError 或 putCompletion</span>
+<span class="code-comment">//    后续的 putNext 会被静默忽略</span>
+          </div>
+
+          <div class="key-point">
+            你平时不需要直接创建 Subscriber——它是 Signal 内部自动管理的。你只需要在 <span class="term">.start(next:error:completed:)</span> 里写三个闭包，Subscriber 会帮你把数据分发到对应的闭包。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disposable -->
+    <div class="module-card" id="card-disposable">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon orange">🗑</div>
+        <div class="module-meta">
+          <div class="module-name">Disposable — 退订机制</div>
+          <div class="module-subtitle">关掉水龙头，别让水白流</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话：</b>Disposable 就是取消订阅的按钮。你不想听了，按一下，Signal 就不再给你发数据了。</p>
+
+          <div class="analogy">
+            你订了三个杂志。搬家的时候需要挨个打电话退订，不然杂志会一直寄到旧地址浪费钱。<br><br>
+            Disposable 就是那个「退订电话」。不调用的话，Signal 会一直在后台跑，白白消耗内存和 CPU。
+          </div>
+
+          <p>SwiftSignalKit 提供了四种 Disposable，覆盖不同场景：</p>
+
+          <table class="compare-table">
+            <tr>
+              <th>类型</th>
+              <th>作用</th>
+              <th>生活类比</th>
+            </tr>
+            <tr>
+              <td><span class="term">ActionDisposable</span></td>
+              <td>退订时执行一个自定义动作</td>
+              <td>退订杂志时顺便发个投诉邮件</td>
+            </tr>
+            <tr>
+              <td><span class="term">MetaDisposable</span></td>
+              <td>可以替换内容——设新的会自动取消旧的</td>
+              <td>换一家杂志订阅，自动帮你退掉上一家</td>
+            </tr>
+            <tr>
+              <td><span class="term">DisposableSet</span></td>
+              <td>一组订阅打包管理，一键全退</td>
+              <td>搬家时一个电话退掉所有杂志</td>
+            </tr>
+            <tr>
+              <td><span class="term">DisposableDict</span></td>
+              <td>按名字管理一组订阅，可以单独退某一个</td>
+              <td>记着每家杂志的名字，想退哪家退哪家</td>
+            </tr>
+          </table>
+
+          <div class="code-block">
+            <div class="code-label">最常见的用法</div>
+<span class="code-keyword">class</span> <span class="code-type">ChatController</span> {
+    <span class="code-comment">// 用 MetaDisposable 管理订阅</span>
+    <span class="code-keyword">private let</span> messageDisposable = <span class="code-type">MetaDisposable</span>()
+
+    <span class="code-keyword">func</span> <span class="code-func">loadMessages</span>() {
+        <span class="code-comment">// 每次调用都会自动取消上一次的订阅</span>
+        messageDisposable.<span class="code-func">set</span>(
+            fetchMessages().<span class="code-func">start</span>(next: { messages <span class="code-keyword">in</span>
+                self.<span class="code-func">updateUI</span>(messages)
+            })
+        )
+    }
+
+    <span class="code-keyword">deinit</span> {
+        <span class="code-comment">// 页面销毁时，退订所有还在跑的任务</span>
+        messageDisposable.<span class="code-func">dispose</span>()
+    }
+}
+          </div>
+
+          <div class="warning">
+            如果你忘了 dispose，Signal 就会一直在后台跑，即使那个页面已经关掉了。这是内存泄漏最常见的原因之一。Telegram 的做法是：<b>在每个控制器的 deinit 里统一清理所有 Disposable</b>。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Promise & ValuePromise -->
+    <div class="module-card" id="card-promise">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon cyan">🔄</div>
+        <div class="module-meta">
+          <div class="module-name">Promise & ValuePromise — 可变数据源</div>
+          <div class="module-subtitle">当你需要手动更新数据的时候</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p><b>一句话：</b>Signal 是水管，那 Promise 就是水龙头——你可以随时拧开它，往水管里灌新的水。</p>
+
+          <p>普通的 Signal 一旦创建，数据源就定死了（由 generator 决定）。但很多时候你需要<b>动态更新</b>数据——比如用户输入了新的搜索关键词，你需要把新的关键词推进数据流。这就是 Promise 干的事。</p>
+
+          <div class="analogy">
+            <b>Signal</b> = 电视直播，你只能看台里播什么。<br>
+            <b>Promise</b> = 你自己的投影仪，你想播什么就播什么，还能随时换片。<br>
+            <b>ValuePromise</b> = 一块白板，你擦掉旧内容写新的，所有看着白板的人立刻看到变化。
+          </div>
+
+          <p>Promise 和 ValuePromise 的区别：</p>
+
+          <table class="compare-table">
+            <tr>
+              <th></th>
+              <th>Promise&lt;T&gt;</th>
+              <th>ValuePromise&lt;T&gt;</th>
+            </tr>
+            <tr>
+              <td><b>更新方式</b></td>
+              <td>用另一个 Signal 来更新<br><span class="term">.set(signal)</span></td>
+              <td>直接塞一个值<br><span class="term">.set(value)</span></td>
+            </tr>
+            <tr>
+              <td><b>适用场景</b></td>
+              <td>数据来自异步操作（网络请求、数据库查询）</td>
+              <td>数据来自同步操作（用户输入、状态切换）</td>
+            </tr>
+            <tr>
+              <td><b>去重</b></td>
+              <td>不去重，每次 set 都通知</td>
+              <td>值没变就不通知（需要 T 实现 Equatable）</td>
+            </tr>
+          </table>
+
+          <div class="code-block">
+            <div class="code-label">Promise vs ValuePromise</div>
+<span class="code-comment">// Promise：用 Signal 更新</span>
+<span class="code-keyword">let</span> chatList = <span class="code-type">Promise</span>&lt;[<span class="code-type">Chat</span>]&gt;()
+chatList.<span class="code-func">set</span>(fetchChatsFromDatabase())  <span class="code-comment">// 传入一个异步 Signal</span>
+
+<span class="code-comment">// ValuePromise：直接塞值</span>
+<span class="code-keyword">let</span> searchText = <span class="code-type">ValuePromise</span>&lt;<span class="code-type">String</span>&gt;(<span class="code-string">""</span>)
+searchText.<span class="code-func">set</span>(<span class="code-string">"hello"</span>)    <span class="code-comment">// 用户输入了 hello，直接更新</span>
+searchText.<span class="code-func">set</span>(<span class="code-string">"hello"</span>)    <span class="code-comment">// 重复值，ValuePromise 不会重复通知</span>
+searchText.<span class="code-func">set</span>(<span class="code-string">"world"</span>)    <span class="code-comment">// 新值，通知所有订阅者</span>
+          </div>
+
+          <div class="for-starlet">
+            Starlet 的群聊输入框可以用 ValuePromise 来管理「正在输入」状态——用户打字时 set(true)，停下来 set(false)，ValuePromise 自动去重，不会因为用户每打一个字就发一次通知。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: 数据怎么流动 -->
+  <div class="section">
+    <div class="section-label">Data Flow</div>
+    <h2>数据怎么流动的</h2>
+    <p class="desc">知道了四个零件，接下来看它们怎么拼在一起。</p>
+
+    <div class="module-card" id="card-flow">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon blue">🌊</div>
+        <div class="module-meta">
+          <div class="module-name">一条完整的数据流</div>
+          <div class="module-subtitle">从产生到消费的全过程</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="analogy">
+            想象一条河：<br><br>
+            <b>源头</b>（Signal 的 generator）→ <b>河道</b>（操作符加工数据）→ <b>分流口</b>（多个订阅者）→ <b>水闸</b>（Disposable 控制开关）
+          </div>
+
+          <div class="flow-diagram">
+            <div class="flow-row">
+              <div class="flow-box accent">
+                📡 数据源
+                <small>Signal generator</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓ putNext</div>
+            <div class="flow-row">
+              <div class="flow-box orange">
+                🔧 操作符加工
+                <small>map / filter / delay</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓ 变换后的数据</div>
+            <div class="flow-row">
+              <div class="flow-box green">
+                📬 Subscriber
+                <small>接收并分发</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓ 回调</div>
+            <div class="flow-row">
+              <div class="flow-box pink">
+                🖥 UI 更新
+                <small>next 闭包里刷新界面</small>
+              </div>
+            </div>
+          </div>
+
+          <p>用 Telegram 里的一个真实场景来走一遍：<b>搜索联系人</b>。</p>
+
+          <div class="code-block">
+            <div class="code-label">搜索联系人的数据流</div>
+<span class="code-comment">// 1. 用户在搜索框打字 → ValuePromise 收到新的搜索词</span>
+<span class="code-keyword">let</span> searchQuery = <span class="code-type">ValuePromise</span>&lt;<span class="code-type">String</span>&gt;(<span class="code-string">""</span>)
+
+<span class="code-comment">// 2. 搜索词通过一系列操作符加工</span>
+<span class="code-keyword">let</span> results = searchQuery.<span class="code-func">get</span>()       <span class="code-comment">// 拿到 Signal</span>
+    |&gt; <span class="code-func">filter</span> { $0.count &gt;= 2 }         <span class="code-comment">// 少于 2 个字不搜</span>
+    |&gt; <span class="code-func">delay</span>(<span class="code-string">0.3</span>, queue: .<span class="code-type">main</span>)       <span class="code-comment">// 等 0.3 秒（防抖）</span>
+    |&gt; <span class="code-func">mapToSignal</span> { query <span class="code-keyword">in</span>           <span class="code-comment">// 发起搜索请求</span>
+        searchContacts(query: query)
+    }
+
+<span class="code-comment">// 3. UI 订阅结果</span>
+disposable.<span class="code-func">set</span>(
+    results.<span class="code-func">start</span>(next: { contacts <span class="code-keyword">in</span>
+        self.<span class="code-func">showResults</span>(contacts)       <span class="code-comment">// 更新搜索结果列表</span>
+    })
+)
+          </div>
+
+          <p>这段代码做了什么？</p>
+          <p>
+            用户打字 → 不到 2 个字的忽略 → 打完等 0.3 秒才搜（不是每打一个字就搜一次）→ 发起搜索 → 结果自动推到 UI。
+          </p>
+          <p>
+            整个过程<b>没有一个 if-else，没有一个定时器，没有一个回调嵌套</b>。数据像水一样流过每一个环节，每个环节只管自己那一步。
+          </p>
+
+          <div class="key-point">
+            注意那个 <span class="term">|&gt;</span> 符号——这是 SwiftSignalKit 的「管道操作符」，借鉴了 JavaScript 的 pipeline operator 提案。它让代码的阅读顺序跟数据的流动方向一致：从上往下读就是从源头到终点。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: 操作符 -->
+  <div class="section">
+    <div class="section-label">Operators</div>
+    <h2>常用操作符</h2>
+    <p class="desc">操作符就是数据流中间的加工站。原始数据流过去，出来的时候已经变成你想要的样子了。</p>
+
+    <div class="module-card" id="card-transform">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon accent">🔧</div>
+        <div class="module-meta">
+          <div class="module-name">变换类：map / filter / mapToSignal</div>
+          <div class="module-subtitle">改形状、筛选、展开嵌套</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="analogy">
+            流水线上的工序：<br><br>
+            <b>map</b> = 喷漆车间（进来白色的，出去红色的，形状不变）<br>
+            <b>filter</b> = 质检站（合格的放行，不合格的扔掉）<br>
+            <b>mapToSignal</b> = 拆箱站（进来一个大箱子，拆开后里面的小东西一个一个放上传送带）
+          </div>
+
+          <div class="code-block">
+            <div class="code-label">三个最常用的操作符</div>
+<span class="code-comment">// map — 把一种数据变成另一种</span>
+<span class="code-comment">// 例：把用户对象变成用户名字符串</span>
+userSignal |&gt; <span class="code-func">map</span> { user <span class="code-keyword">in</span> user.name }
+<span class="code-comment">// Signal&lt;User&gt; → Signal&lt;String&gt;</span>
+
+<span class="code-comment">// filter — 只放行满足条件的值</span>
+<span class="code-comment">// 例：只要在线的用户</span>
+userSignal |&gt; <span class="code-func">filter</span> { user <span class="code-keyword">in</span> user.isOnline }
+<span class="code-comment">// Signal&lt;User&gt; → Signal&lt;User&gt;（但只有在线的才会通过）</span>
+
+<span class="code-comment">// mapToSignal — 把值变成另一个 Signal，然后展平</span>
+<span class="code-comment">// 例：拿到用户 ID 后去请求用户详情</span>
+userIdSignal |&gt; <span class="code-func">mapToSignal</span> { id <span class="code-keyword">in</span>
+    fetchUserDetails(id: id)
+}
+<span class="code-comment">// Signal&lt;Int&gt; → Signal&lt;UserDetails&gt;</span>
+          </div>
+
+          <p><span class="term">mapToSignal</span> 是最容易让人迷糊的。简单理解：<b>map 是同步变换</b>（拿到值立刻变），<b>mapToSignal 是异步变换</b>（拿到值之后要等一个异步操作完成才能拿到结果）。</p>
+
+          <div class="key-point">
+            在 Telegram 的代码里，<span class="term">mapToSignal</span> 出现的频率极高——因为大量操作是异步的：查数据库、请求网络、等用户确认。每次遇到「拿到 A 之后去请求 B」的场景，就是 mapToSignal。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card" id="card-combine">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon green">🔀</div>
+        <div class="module-meta">
+          <div class="module-name">组合类：combineLatest / then</div>
+          <div class="module-subtitle">多条数据流汇合</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="analogy">
+            <b>combineLatest</b>：你同时等两个外卖——只要其中一个有更新（骑手位置变了），你就重新看一眼两个外卖的最新状态。<br><br>
+            <b>then</b>：吃完午饭再吃甜点。午饭（第一个 Signal）完成了，才开始甜点（第二个 Signal）。
+          </div>
+
+          <div class="code-block">
+            <div class="code-label">combineLatest</div>
+<span class="code-comment">// 聊天页面需要同时知道：消息列表 + 用户在线状态</span>
+<span class="code-comment">// 任何一个变了，都要重新渲染</span>
+<span class="code-keyword">let</span> combined = <span class="code-func">combineLatest</span>(
+    messagesSignal,     <span class="code-comment">// Signal&lt;[Message]&gt;</span>
+    presenceSignal      <span class="code-comment">// Signal&lt;UserPresence&gt;</span>
+)
+<span class="code-comment">// 结果：Signal&lt;([Message], UserPresence)&gt;</span>
+<span class="code-comment">// 消息更新了 → 触发，拿到最新消息 + 最新在线状态</span>
+<span class="code-comment">// 在线状态变了 → 触发，拿到最新消息 + 最新在线状态</span>
+          </div>
+
+          <div class="key-point">
+            combineLatest 在 Telegram 里的使用密度极高。一个聊天页面要同时监听消息、用户状态、网络状态、主题设置等七八个数据源——全靠 combineLatest 把它们组合在一起。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card" id="card-timing">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon orange">⏱</div>
+        <div class="module-meta">
+          <div class="module-name">时间类：delay / timeout</div>
+          <div class="module-subtitle">控制数据流动的节奏</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <div class="analogy">
+            <b>delay</b>：电梯关门等 3 秒。不是电梯坏了，是故意等一等看有没有人要上来。<br><br>
+            <b>timeout</b>：外卖超过 30 分钟没到就自动退单。
+          </div>
+
+          <p>搜索防抖是 delay 最经典的用法——用户打字很快，你不想每打一个字母就发一次网络请求。加一个 <span class="term">delay(0.3)</span>，用户停下来 0.3 秒才真正搜索。如果 0.3 秒内又打了新字，旧的请求自动取消。</p>
+
+          <div class="code-block">
+            <div class="code-label">防抖原理</div>
+<span class="code-comment">// 用户快速输入 "h" "he" "hel" "hell" "hello"</span>
+<span class="code-comment">// 没有 delay：发 5 次请求，浪费 4 次</span>
+<span class="code-comment">// 有 delay(0.3)：只在用户停顿后发 1 次请求 "hello"</span>
+
+searchQuery.<span class="code-func">get</span>()
+    |&gt; <span class="code-func">delay</span>(<span class="code-string">0.3</span>, queue: .<span class="code-type">mainQueue</span>())
+    |&gt; <span class="code-func">mapToSignal</span> { query <span class="code-keyword">in</span>
+        searchAPI(query)
+    }
+          </div>
+
+          <div class="for-starlet">
+            Starlet 的搜索功能如果还没做防抖，加一个就行。不加的话，用户打字快的时候服务器会收到一堆无意义的请求，浪费带宽还可能触发限频。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card" id="card-thread">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon pink">🧵</div>
+        <div class="module-meta">
+          <div class="module-name">线程类：deliverOnMainQueue</div>
+          <div class="module-subtitle">确保 UI 更新在主线程</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p>iOS 有一条铁律：<b>所有 UI 操作必须在主线程执行</b>。但数据往往是在后台线程产生的（网络请求返回、数据库查询完成）。</p>
+
+          <div class="analogy">
+            你在工厂（后台线程）生产零件，但安装必须在展厅（主线程）进行。<span class="term">deliverOnMainQueue</span> 就是从工厂到展厅的传送带——零件在工厂做好，自动送到展厅去安装。
+          </div>
+
+          <div class="code-block">
+            <div class="code-label">线程切换</div>
+<span class="code-comment">// 数据库查询在后台线程执行</span>
+<span class="code-comment">// deliverOnMainQueue 把结果切到主线程</span>
+<span class="code-comment">// next 闭包里可以安全地更新 UI</span>
+fetchFromDatabase()
+    |&gt; <span class="code-func">deliverOnMainQueue</span>
+    |&gt; <span class="code-func">start</span>(next: { data <span class="code-keyword">in</span>
+        self.tableView.<span class="code-func">reloadData</span>()  <span class="code-comment">// 安全！在主线程</span>
+    })
+          </div>
+
+          <p>SwiftSignalKit 的 <span class="term">Queue</span> 类包装了 GCD，提供了三个预设队列：</p>
+          <p>
+            • <span class="term">Queue.mainQueue()</span> — 主线程，更新 UI 用<br>
+            • <span class="term">Queue.concurrentDefaultQueue()</span> — 默认并发队列，一般计算用<br>
+            • <span class="term">Queue.concurrentBackgroundQueue()</span> — 后台队列，重活用
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: 实战案例 -->
+  <div class="section">
+    <div class="section-label">Real World</div>
+    <h2>在 Telegram 里的真实用法</h2>
+    <p class="desc">理论讲完了，来看两个从 Telegram 源码里抽出来的真实场景。</p>
+
+    <div class="module-card" id="card-example1">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon accent">💬</div>
+        <div class="module-meta">
+          <div class="module-name">场景一：用户名实时校验</div>
+          <div class="module-subtitle">打字 → 防抖 → 本地校验 → 服务端校验 → 显示结果</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p>设置用户名的时候，Telegram 会实时告诉你这个名字能不能用。这个流程全靠 SwiftSignalKit 串起来：</p>
+
+          <div class="flow-diagram">
+            <div class="flow-row">
+              <div class="flow-box cyan">
+                ⌨️ 用户打字
+                <small>ValuePromise 更新</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-row">
+              <div class="flow-box orange">
+                ⏱ delay 0.3s
+                <small>防抖，等用户停下来</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-row">
+              <div class="flow-box green">
+                ✅ 本地校验
+                <small>长度、字符合法性</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓ 通过了才继续</div>
+            <div class="flow-row">
+              <div class="flow-box accent">
+                🌐 服务端校验
+                <small>检查是否已被占用</small>
+              </div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-row">
+              <div class="flow-box pink">
+                🖥 显示结果
+                <small>✓ 可用 / ✗ 已被占用</small>
+              </div>
+            </div>
+          </div>
+
+          <p>关键细节：用的是 <span class="term">MetaDisposable</span>——用户每次打新字，旧的服务端校验请求自动取消。不会出现「查 abc 的结果比查 ab 的结果晚到，覆盖了正确结果」的 bug。</p>
+
+          <div class="key-point">
+            这就是响应式编程真正的价值：用声明式的方式描述「数据怎么流、怎么变」，而不是用一堆 if-else、flag、callback 来手动管理状态。代码量少了一半，bug 也少了一半。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card" id="card-example2">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon green">📱</div>
+        <div class="module-meta">
+          <div class="module-name">场景二：聊天页面的数据编排</div>
+          <div class="module-subtitle">七八个数据流同时跑，一个 combineLatest 搞定</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <p>打开一个聊天页面，你看到的不只是消息列表——还有对方的在线状态、头像、输入中提示、背景主题、网络状态指示器……这些数据来自不同的 Signal，但需要一起渲染。</p>
+
+          <div class="code-block">
+            <div class="code-label">聊天页面的数据组合（简化）</div>
+<span class="code-keyword">let</span> chatData = <span class="code-func">combineLatest</span>(
+    messagesSignal,          <span class="code-comment">// 消息列表</span>
+    peerPresenceSignal,      <span class="code-comment">// 对方在线状态</span>
+    typingStatusSignal,      <span class="code-comment">// "对方正在输入..."</span>
+    themeSignal,             <span class="code-comment">// 当前主题/壁纸</span>
+    networkStatusSignal      <span class="code-comment">// 网络连接状态</span>
+)
+|&gt; <span class="code-func">deliverOnMainQueue</span>
+
+chatDataDisposable.<span class="code-func">set</span>(
+    chatData.<span class="code-func">start</span>(next: { messages, presence, typing, theme, network <span class="code-keyword">in</span>
+        <span class="code-comment">// 任何一个数据源变了，这里都会触发</span>
+        <span class="code-comment">// 拿到的永远是所有数据源的最新值</span>
+        self.<span class="code-func">render</span>(
+            messages: messages,
+            isOnline: presence.isOnline,
+            isTyping: typing,
+            theme: theme,
+            isConnected: network.isConnected
+        )
+    })
+)
+          </div>
+
+          <p>如果不用响应式，你需要：给每个数据源写一个回调 → 每个回调里手动检查其他数据源的状态 → 手动决定是否需要刷新 UI → 处理各种时序问题（A 的回调先到还是 B 的先到）。</p>
+
+          <p>用 combineLatest，所有这些问题都没了。<b>任何一个变，拿到所有的最新值，刷一次 UI。</b>就这么简单。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 6: 和别的框架比 -->
+  <div class="section">
+    <div class="section-label">Comparison</div>
+    <h2>跟别的响应式框架比</h2>
+    <p class="desc">Combine、RxSwift 你可能听过。SwiftSignalKit 跟它们有什么区别？</p>
+
+    <div class="module-card" id="card-compare">
+      <div class="module-header" onclick="toggleCard(this)">
+        <div class="module-icon blue">⚖️</div>
+        <div class="module-meta">
+          <div class="module-name">SwiftSignalKit vs Combine vs RxSwift</div>
+          <div class="module-subtitle">三个框架各有什么特点</div>
+        </div>
+        <div class="module-chevron">▸</div>
+      </div>
+      <div class="module-body">
+        <div class="module-content">
+          <table class="compare-table">
+            <tr>
+              <th></th>
+              <th>SwiftSignalKit</th>
+              <th>Combine</th>
+              <th>RxSwift</th>
+            </tr>
+            <tr>
+              <td><b>谁做的</b></td>
+              <td>Telegram 团队</td>
+              <td>Apple</td>
+              <td>社区</td>
+            </tr>
+            <tr>
+              <td><b>诞生时间</b></td>
+              <td>~2015</td>
+              <td>2019</td>
+              <td>~2016</td>
+            </tr>
+            <tr>
+              <td><b>核心类</b></td>
+              <td>Signal</td>
+              <td>Publisher</td>
+              <td>Observable</td>
+            </tr>
+            <tr>
+              <td><b>代码量</b></td>
+              <td>~3000 行</td>
+              <td>闭源</td>
+              <td>~20000 行</td>
+            </tr>
+            <tr>
+              <td><b>独特设计</b></td>
+              <td><span class="term">|&gt;</span> 管道操作符</td>
+              <td>链式调用</td>
+              <td>链式调用</td>
+            </tr>
+            <tr>
+              <td><b>学习曲线</b></td>
+              <td>低（概念少）</td>
+              <td>中</td>
+              <td>高（概念多）</td>
+            </tr>
+          </table>
+
+          <div class="key-point">
+            SwiftSignalKit 的哲学是<b>够用就好</b>。它没有 RxSwift 的几百个操作符，没有 Combine 的 async/await 集成——但 Telegram 用它撑起了一个日活 9 亿的 app。核心概念少 = 学得快、出 bug 少、维护简单。
+          </div>
+
+          <p>Telegram 为什么不换成 Combine？因为 SwiftSignalKit 已经渗透到每一行代码里了，换掉等于重写整个 app。而且 Combine 要求 iOS 13+，Telegram 当年还要支持更老的系统。到现在，已经没有换的必要了——它跑得好好的。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 7: 总结速查 -->
+  <div class="section">
+    <div class="section-label">Cheat Sheet</div>
+    <h2>一张图记住 SwiftSignalKit</h2>
+    <p class="desc">以后看 Telegram 源码遇到不认识的东西，翻回来查这里。</p>
+
+    <div class="flow-diagram" style="gap:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="padding:14px 18px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--accent);">
+          <b style="color:var(--accent);">Signal&lt;T, E&gt;</b><br>
+          <span style="font-size:13px;color:var(--text-dim);">数据流。T 是数据类型，E 是错误类型。generator 里定义数据怎么来。</span>
+        </div>
+        <div style="padding:14px 18px;border-radius:10px;background:var(--green-soft);border:1px solid var(--green);">
+          <b style="color:var(--green);">Subscriber</b><br>
+          <span style="font-size:13px;color:var(--text-dim);">接收端。putNext 发数据，putError 报错，putCompletion 完成。线程安全。</span>
+        </div>
+        <div style="padding:14px 18px;border-radius:10px;background:var(--orange-soft);border:1px solid var(--orange);">
+          <b style="color:var(--orange);">Disposable</b><br>
+          <span style="font-size:13px;color:var(--text-dim);">退订。MetaDisposable 最常用——set 新的自动取消旧的。deinit 里必须 dispose。</span>
+        </div>
+        <div style="padding:14px 18px;border-radius:10px;background:var(--cyan-soft);border:1px solid var(--cyan);">
+          <b style="color:var(--cyan);">Promise / ValuePromise</b><br>
+          <span style="font-size:13px;color:var(--text-dim);">可变数据源。Promise 用 Signal 更新，ValuePromise 直接塞值且自动去重。</span>
+        </div>
+      </div>
+      <div style="text-align:center;color:var(--text-faint);font-size:13px;padding-top:8px;">
+        常用操作符：<span class="term">map</span> <span class="term">filter</span> <span class="term">mapToSignal</span> <span class="term">combineLatest</span> <span class="term">delay</span> <span class="term">deliverOnMainQueue</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Made with care for Cele · <a href="index.html">第一期 · 架构总览</a></p>
+  <p style="margin-top:8px;">下一期预告：深入 Postbox，Telegram 的加密本地数据库是怎么设计的</p>
+</div>
+
+<script>
+function toggleCard(header) {
+  const card = header.closest('.module-card');
+  card.classList.toggle('open');
+}
+</script>
+</body>
+</html>
